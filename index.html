@@ -1,0 +1,279 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Oakland school lunches</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style type="text/css">
+
+    body {
+        background: url("images/cloudslight.jpg");
+        background-attachment: fixed;
+    }
+
+    @font-face {
+    font-family: linowrite;
+    src: url(fonts/linowrite.ttf);
+}
+
+    #container {
+        position:absolute;
+        vector-effect:non-scaling-stroke;
+    }
+
+    .bar {
+      fill: rgba(20,20,20,0.6);
+    }
+
+    .chart text {
+      fill: black;
+      font: 10px sans-serif;
+      text-anchor: end;
+    }
+
+    .axis path,
+    .axis line {
+        fill:none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
+
+    #header {
+        position: absolute;
+        color:#ffe46c;
+        top: 0.8em;
+    }
+
+    h1 {
+        font-size:5.5em;
+        font-family: linowrite, monospace;
+    }
+
+    h2 {
+        font-size: 2em;
+        color: rgba(20,20,20,0.7);
+        font-family: "Trebuchet MS", Helvetica, sans-serif;
+
+    }
+
+    #subhead {
+        position: absolute;
+        margin-top:5em;
+    }
+
+    .infobar, text {
+
+        font-family: "Trebuchet MS", Helvetica, sans-serif;
+        font-size: 1em;
+    }
+
+    .infobar {
+        font-weight:bold;
+    }
+
+    #line {
+        background: rgba(0,0,0,1);
+        position:fixed;
+    }
+
+    </style>
+</head>
+<body>
+
+    
+    <div id="container">
+        <div id="leftchart">
+            <div id="header">
+                <H1>Pie in the sky</H1>
+            </div>
+            <div id="subhead">
+            <h2>
+                How many Oakland students <br> can afford school lunch? <br> Schools ordered by Altitude.
+            </h2>
+            </div>    
+        </div>
+         <div id="infobarabove"></div>
+         <div id="line"></div>
+         <div id="infobarbelow"></div>
+    </div>
+
+    <script src="d3.v3.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+
+    <script>
+
+    d3.csv("OaklandSchools.csv", function(error, data){
+
+    //cleaning data
+        var data = data.map(function(d){ 
+            d["Percent"] = d3.round(+d["Percent"]*100);
+            d["Enrollment (K-12)"] = +d["Enrollment (K-12)"];
+            d["Altitude"] = d3.round(+d["Altitude"],0);
+            d["PercentAffordAbove"] = d3.round(100*+d["PercentAffordAbove"],0);
+            d["PercentAffordBelow"] = d3.round(100*+d["PercentAffordBelow"],0);
+            return d;
+        });
+
+        var newdata = [];
+
+        data.map(function(d) {
+            if (d["Enrollment (K-12)"] > 20) {
+                newdata.push(d);
+            }
+        });
+
+        data = newdata;
+
+    //setting margins and chart size
+        var margin = {top:400, right:400, bottom:600, left:190},
+            width = 1100,
+            height  = 5000;
+
+        var chartwidth = width - margin.left - margin.right;
+        var chartheight = height - margin.top - margin.bottom;
+
+    //scales
+        var xScale = d3.scale.linear()
+            .domain([0, 100])
+            .range([0, chartwidth]);
+
+        var yScale = d3.scale.ordinal()
+            .domain(data.map(function(d) {return d["School Name"]; }))
+            .rangeRoundBands([0, chartheight],0.1);
+
+        //axis functions
+        var yAxis = d3.svg.axis()
+            .scale(yScale)
+            .orient("left")
+            .tickFormat("")
+            .tickSize(0);
+
+        var xAxis = d3.svg.axis()
+            .scale(xScale)
+            .orient("top")
+            .tickFormat(function(d) {return d + "%"; })
+            .tickSize(0);
+
+        //main chart container
+        var chart = d3.select("#leftchart")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        //creating groupings for bars
+        var bar = chart.append("g")
+            .attr("class", "chart-area")
+            .selectAll(".bar")
+            .data(data)
+            .enter()
+            .append("g")
+            .attr("transform", function(d,i) { return "translate(" + margin.left + ", " + (margin.top + yScale(d["School Name"])) + ")"; });
+
+        //creates bars, sets height and width, appends text
+        bars = bar.append("rect")
+            .attr("class", "bar")
+            .attr("width", function(d) {return chartwidth - xScale(d["Percent"]); })
+            .attr("height", yScale.rangeBand())
+            .attr("id", function(d) {return data.indexOf(d); });
+
+        bar.append("text")
+            .text(function(d) {return d["School Name"] + ", Altitude: " + d["Altitude"] + " ft";})
+            .attr("y", 20)
+            .attr("x", function(d) {return 5 + chartwidth-xScale(d["Percent"])});
+
+        //applies y axis
+        chart.append("g")
+            .attr("class", "y axis")
+            .call(yAxis)
+            .attr("transform", "translate(" + margin.left + ", " + margin.top + ")");
+
+        // axis
+        chart.append("g")
+            .attr("class", "x axis")
+            .attr("width", chartwidth)
+            .call(xAxis)
+            .attr("transform", "translate(" + margin.left + ", " + margin.top + ")");
+
+        //sets info bar
+        var ih = 200;
+        var iw = margin.left-10;
+        var infopad = 30
+
+        d3.select("#infobarabove")
+            .attr("class", "infobar")
+            .style( {"height":ih, "width":iw, "top": margin.top+6-ih, "left": "5", "position":"fixed"})
+            .append("div")
+            .attr("id", "highinfo")
+            .style({"position":"absolute","bottom": infopad});
+
+        d3.select("#infobarbelow")
+            .attr("class", "infobar")
+            .style( {"height":ih, "width":iw, "top": margin.top+6, "left": "5", "position":"fixed"})
+            .append("div")
+            .attr("id", "lowinfo")
+            .style({"position":"absolute","top": infopad});
+        
+        //sets line
+        var line = d3.select('#line')
+            .attr("class", "line")
+            .style( {"height":2, "width":0, "top": margin.top+6, "left": "0", "position":"fixed"});
+
+        d3.select("#header")
+            .style({"margin-left": margin.left - 25, "margin-right": "0", "text-align":"center", "margin-top":"0"});
+
+        d3.select("#subhead")
+            .style({"margin-left": margin.left + 50, "margin-right": "0", "text-align":"center","margin-top":"8em"});
+
+
+        //code for updating info boxes
+        $(document).ready(function(){
+            var barheight = yScale.rangeBand();
+            var lowbracket = Math.round(barheight/2)+1;
+            highbracket = lowbracket;
+            if (barheight % 2 == 1) {
+                highbracket = lowbracket+1;
+            }
+            var heights = {};
+            $(".bar").each(function() {
+                $(this).show();
+                for (var i = -lowbracket; i < highbracket; i++) {
+                    lookup = $(this).attr("id")
+                    distance = margin.top + yScale(data[lookup]["School Name"]);
+                    heights[distance+i] = lookup;
+                }
+            });
+            for (i in heights) {
+                if (!heights[i-1]) {
+                    console.log(i-1);
+                };
+            }
+            $(window).scroll(function() {
+                var windowscroll = $(window).scrollTop();
+                rough_height = windowscroll+margin.top;
+                chartS = $(".chart-area").offset().top - margin.top;
+                chartE = chartS + chartheight-barheight*1.3;   
+                if (windowscroll < chartS || windowscroll > chartE) {
+                    $("#lowinfo").html("");
+                    $("#highinfo").html("");
+                    line.style( {"width":"0"});
+                } else {
+                    line.style( {"width":"100%"});             
+                    $("#highinfo").html("<h2>" + data[heights[rough_height]]["PercentAffordAbove"]+ "% </h2>" +
+                        " of students " + 
+                        data[heights[rough_height]]["Altitude"] + " ft and above can afford full-price school lunches.");
+                    $("#lowinfo").html("<h2>" + data[heights[rough_height]]["PercentAffordBelow"]+ "% </h2>" +
+                        " of students " + 
+                        data[heights[rough_height]]["Altitude"] + " ft and below can afford full-price school lunches.");
+                };
+            });
+        });
+
+
+        });
+
+        
+
+    </script>
+
+</body>
+</html>
